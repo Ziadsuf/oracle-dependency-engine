@@ -1,0 +1,19 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local tooling config
+.claude/
+.vscode/
+.idea/
+
+# Generated/machine-specific output (regenerate with the samples/ scripts)
+samples/oracle_real_ddl.sql
+samples/all_tables_ddl.sql
+samples/app_tables_ddl.sql
+samples/discover_body.json

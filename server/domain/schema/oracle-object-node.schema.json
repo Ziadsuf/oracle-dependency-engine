@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oracle-impact-analyzer/schemas/oracle-object-node.schema.json",
+  "title": "OracleObjectNode",
+  "description": "Canonical IR node for the Oracle Dependency Engine. Mirrors server/domain/model.ts; portable contract for the future Spring Boot port.",
+  "type": "object",
+  "required": ["id", "type", "schema", "name", "group", "properties", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Canonical ID: <type>:<schema>.<name>[#<sub>], e.g. table:HR.EMPLOYEES",
+      "pattern": "^[a-z]+:[^.]+\\..+$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "form", "block", "item", "formtrigger", "programunit",
+        "report", "reportquery", "parameter",
+        "package", "packagebody", "procedure", "function",
+        "table", "column", "view", "materializedview", "dbtrigger",
+        "sequence", "synonym", "index", "constraint", "unresolved"
+      ]
+    },
+    "schema": { "type": ["string", "null"] },
+    "name": { "type": "string", "minLength": 1 },
+    "group": { "type": "string", "enum": ["presentation", "logic", "data"] },
+    "status": { "type": "string", "enum": ["VALID", "INVALID", "UNRESOLVED"] },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "source": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact", "runId"],
+        "additionalProperties": false,
+        "properties": {
+          "artifact": { "type": "string" },
+          "runId": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oracle-impact-analyzer/schemas/dependency-edge.schema.json",
+  "title": "DependencyEdgeRecord",
+  "description": "Canonical IR edge for the Oracle Dependency Engine: dependent → dependency. Mirrors server/domain/model.ts.",
+  "type": "object",
+  "required": ["from", "to", "relType", "confidence", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "from": { "type": "string", "description": "Canonical ID of the dependent object" },
+    "to": { "type": "string", "description": "Canonical ID of the dependency" },
+    "relType": {
+      "type": "string",
+      "enum": [
+        "CONTAINS", "CALLS", "REFERENCES", "USES_SEQUENCE", "QUERIES",
+        "DEPENDS_ON", "FK_TO", "BASED_ON", "ATTACHED_TO", "SYNONYM_FOR"
+      ]
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["SELECT", "INSERT", "UPDATE", "DELETE", "EXECUTE", "REFERENCE"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "1.0 dictionary · 0.8 parsed static SQL · 0.4 dynamic-SQL heuristic"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourceType"],
+        "additionalProperties": false,
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": ["DICTIONARY", "PLSQL_SOURCE", "FORMS_XML", "REPORTS_XML", "DDL_FILE"]
+          },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

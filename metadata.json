@@ -1,0 +1,6 @@
+{
+  "name": "Oracle Impact Analyzer",
+  "description": "Analyze Oracle Forms 6i, Reports 6i, PL/SQL packages, Database objects, and dependencies to assess migration impact and technical debt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

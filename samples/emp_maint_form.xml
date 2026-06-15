@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sample Forms XML (frmf2xml-style). Ingest with defaultSchema=APP:
+     curl -F "file=@samples/emp_maint_form.xml" -F "defaultSchema=APP" http://localhost:3000/api/v2/ingest/forms -->
+<Module version="10.1.2.0.2">
+  <FormModule Name="EMP_MAINT">
+    <Block Name="EMPLOYEES" QueryDataSourceName="EMPLOYEES">
+      <Item Name="EMP_ID" ItemType="Text Item" CanvasName="CV_MAIN" />
+      <Item Name="NAME" ItemType="Text Item" CanvasName="CV_MAIN" />
+      <Item Name="SALARY" ItemType="Text Item" CanvasName="CV_MAIN">
+        <Trigger Name="WHEN-VALIDATE-ITEM" TriggerText="BEGIN hr_pkg.validate_emp(:EMPLOYEES.EMP_ID); END;" />
+      </Item>
+      <Trigger Name="PRE-QUERY" TriggerText="BEGIN SELECT dept_name INTO :CTRL.DEPT FROM emp_dept_v WHERE emp_id = :EMPLOYEES.EMP_ID; END;" />
+    </Block>
+    <Canvas Name="CV_MAIN" />
+    <Trigger Name="WHEN-NEW-FORM-INSTANCE" TriggerText="BEGIN hr_pkg.hire_emp('INIT', 0); END;" />
+    <ProgramUnit Name="REFRESH_LOG" ProgramUnitType="Procedure" ProgramUnitText="PROCEDURE refresh_log IS BEGIN DELETE FROM system_log WHERE logged &lt; SYSDATE - 30; END;" />
+  </FormModule>
+</Module>

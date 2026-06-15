@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sample Reports XML (rwconverter-style). Ingest with defaultSchema=APP:
+     curl -F "file=@samples/payroll_sum_report.xml" -F "defaultSchema=APP" http://localhost:3000/api/v2/ingest/reports -->
+<report name="PAYROLL_SUM" DTDVersion="9.0.2.0.0">
+  <data>
+    <userParameter name="P_DEPT_ID" datatype="number"/>
+    <userParameter name="P_DATE_FROM" datatype="date"/>
+    <userParameter name="P_DATE_TO" datatype="date"/>
+    <dataSource name="Q_MAIN">
+      <select>SELECT emp_id, name, salary FROM employees WHERE dept_id = :P_DEPT_ID</select>
+    </dataSource>
+    <dataSource name="Q_HIST">
+      <select>SELECT emp_id, old_salary, new_salary FROM salary_hist WHERE changed_at BETWEEN :P_DATE_FROM AND :P_DATE_TO</select>
+    </dataSource>
+  </data>
+  <layout>
+    <section name="main">
+      <body>
+        <frame name="M_G_EMP_HEADER"/>
+        <repeatingFrame name="R_G_EMP" source="Q_MAIN"/>
+        <field name="F_NAME" source="name"/>
+        <field name="F_SALARY" source="salary"/>
+      </body>
+    </section>
+  </layout>
+  <programUnits>
+    <function name="CF_TOTAL_SALARY">
+      <textSource>function CF_TOTAL_SALARY return number is v number; begin select sum(salary) into v from employees; return v; end;</textSource>
+    </function>
+  </programUnits>
+</report>

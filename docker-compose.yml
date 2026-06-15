@@ -1,0 +1,25 @@
+# Local Neo4j for the Oracle Dependency Engine.
+# Start:  docker compose up -d
+# Browser UI: http://localhost:7474  (bolt://localhost:7687)
+# Credentials must match NEO4J_USER / NEO4J_PASSWORD in .env.local (.env.example defaults).
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: oracle-impact-neo4j
+    ports:
+      - "7474:7474" # HTTP browser
+      - "7687:7687" # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/oracleimpact
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p oracleimpact 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+volumes:
+  neo4j_data:
