@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FormsExtractor } from './formsExtractor';
 
-const FORM_XML = `
+const FORM_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <Module version="10.1.2.0.2">
   <FormModule Name="EMP_MAINT">
     <Block Name="EMPLOYEES" QueryDataSourceName="HR_EMPLOYEES">
@@ -23,7 +23,7 @@ describe('FormsExtractor', () => {
   });
 
   it('rejects invalid XML instead of simulating', () => {
-    expect(() => extractor.extract('BROKEN.xml', Buffer.from('<Module><nope/></Module>'))).toThrow();
+    expect(() => extractor.extract('BROKEN.xml', Buffer.from('<?xml version="1.0"?><Module><nope/></Module>'))).toThrow();
   });
 
   it('builds form/block/item/trigger/programunit nodes with structural edges', () => {
