@@ -39,11 +39,12 @@ import type { GraphData } from '../types';
 
 import dagre from 'dagre';
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   const isHorizontal = direction === 'LR';
+  // Fresh graph per call — a module-level singleton would retain stale nodes
+  // across re-layouts and component remounts, drifting the layout and leaking memory.
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 40 });
 
   nodes.forEach((node) => {
@@ -155,7 +156,8 @@ export function KnowledgeGraph() {
   });
 
   const toFlowEdge = (e: { source: string; target: string; label: string }) => ({
-    id: `e_${e.source}_${e.target}`,
+    // Include the label so two relationship types between the same pair don't collide.
+    id: `e_${e.source}_${e.target}_${e.label}`,
     source: e.source,
     target: e.target,
     label: e.label,
@@ -168,7 +170,8 @@ export function KnowledgeGraph() {
   });
 
   useEffect(() => {
-    fetch('/api/v2/graph?limit=400')
+    const controller = new AbortController();
+    fetch('/api/v2/graph?limit=400', { signal: controller.signal })
       .then(async res => {
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -183,9 +186,11 @@ export function KnowledgeGraph() {
         setLoading(false);
       })
       .catch(err => {
+        if (err.name === 'AbortError') return;
         setEngineError(err.message);
         setLoading(false);
       });
+    return () => controller.abort();
   }, []);
 
   // Progressive expansion: double-click fetches the node's neighbors server-side

@@ -44,14 +44,16 @@ export function IngestButton({ getFile, endpoint, label }: Props) {
       }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Ingestion failed');
-      const stats: IngestStats = data.stats;
+      const stats: IngestStats | undefined = data.stats;
       setMessage(
-        `+${stats.nodesUpserted} nodes · +${stats.edgesUpserted} edges` +
-          (stats.unresolvedRefs ? ` · ${stats.unresolvedRefs} unresolved` : '')
+        stats
+          ? `+${stats.nodesUpserted} nodes · +${stats.edgesUpserted} edges` +
+              (stats.unresolvedRefs ? ` · ${stats.unresolvedRefs} unresolved` : '')
+          : 'Ingestion complete'
       );
       setState('done');
-    } catch (err: any) {
-      setMessage(err.message);
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : String(err));
       setState('error');
     }
   };
