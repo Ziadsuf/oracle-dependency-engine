@@ -11,7 +11,20 @@ import { ReportsAnalyzerService } from "./server/services/reportsParser";
 import { connectGraphEngineFromEnv, type GraphEngine } from "./server/graph";
 import { createV2Router } from "./server/api/v2";
 
-const upload = multer({ storage: multer.memoryStorage() });
+// Cap uploaded artifacts (held in memory) to avoid memory-exhaustion DoS.
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES },
+});
+
+// Generator inputs are interpolated into code templates; only allow a safe
+// identifier so callers can't inject arbitrary text into the generated output.
+const ENTITY_NAME_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
+function isValidEntityName(name: unknown): name is string {
+  return typeof name === "string" && name.length <= 128 && ENTITY_NAME_RE.test(name);
+}
+
 const formsAnalyzerService = new FormsAnalyzerService();
 const plsqlAnalyzerService = new PlsqlAnalyzerService();
 const reportsAnalyzerService = new ReportsAnalyzerService();
@@ -122,7 +135,10 @@ async function startServer() {
   app.post("/api/generate/react", (req, res) => {
     try {
       const { entityName } = req.body;
-      const baseName = entityName ? entityName.charAt(0).toUpperCase() + entityName.slice(1).toLowerCase() : 'Entity';
+      if (!isValidEntityName(entityName)) {
+        return res.status(400).json({ error: "Invalid entityName: expected a letter followed by letters, digits, or underscores." });
+      }
+      const baseName = entityName.charAt(0).toUpperCase() + entityName.slice(1).toLowerCase();
       
       const component = `import React, { useState } from 'react';
 import { 
@@ -364,7 +380,10 @@ public class ${baseName} {
   app.post("/api/generate/springboot", (req, res) => {
     try {
       const { entityName } = req.body;
-      const baseName = entityName ? entityName.charAt(0).toUpperCase() + entityName.slice(1).toLowerCase() : 'Entity';
+      if (!isValidEntityName(entityName)) {
+        return res.status(400).json({ error: "Invalid entityName: expected a letter followed by letters, digits, or underscores." });
+      }
+      const baseName = entityName.charAt(0).toUpperCase() + entityName.slice(1).toLowerCase();
       
       const controller = `package com.enterprise.app.controller;
 
@@ -571,6 +590,15 @@ public class ${baseName}Dto {
 
   // Demo endpoints retired: /api/db/metadata, /api/graph, /api/impact/:nodeId
   // and /api/dashboard are replaced by the computed /api/v2 equivalents.
+
+  // Surface upload errors (e.g. file too large) as 4xx instead of a generic 500.
+  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof multer.MulterError) {
+      const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      return res.status(status).json({ error: `Upload rejected: ${err.message}` });
+    }
+    return next(err);
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
