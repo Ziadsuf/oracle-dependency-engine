@@ -14,6 +14,11 @@ export class PlsqlAnalyzerService {
     const globalDependencies = new Set<string>();
 
     let currentSubprogram: PlsqlSubprogram | null = null;
+    // Track block nesting (BEGIN/IF/LOOP/CASE openers vs END closers) so a
+    // subprogram's own terminating END is found regardless of its length —
+    // replaces a fragile "more than 5 lines in" heuristic.
+    let blockDepth = 0;
+    let openedBody = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -34,6 +39,8 @@ export class PlsqlAnalyzerService {
           complexity: 1,
           dependencies: []
         };
+        blockDepth = 0;
+        openedBody = false;
       }
 
       // Check for Function
@@ -51,6 +58,8 @@ export class PlsqlAnalyzerService {
           complexity: 1,
           dependencies: []
         };
+        blockDepth = 0;
+        openedBody = false;
       }
 
       // Complexity and Dependencies Metrics
@@ -71,9 +80,19 @@ export class PlsqlAnalyzerService {
           }
         }
 
-        // End of subprogram heuristic
-        const endMatch = upperLine.match(new RegExp(`END\\s+${currentSubprogram.name}`));
-        if (endMatch || (upperLine.match(/\bEND;\b/) && i > currentSubprogram.startLine + 5)) {
+        // End of subprogram: track nesting depth, then close on the END that
+        // balances the body's BEGIN (or an explicit `END <name>`).
+        const openers =
+          (upperLine.match(/\bBEGIN\b/g) || []).length +
+          (upperLine.match(/(?<!END\s+)\bIF\b/g) || []).length +
+          (upperLine.match(/(?<!END\s+)\bLOOP\b/g) || []).length +
+          (upperLine.match(/(?<!END\s+)\bCASE\b/g) || []).length;
+        const closers = (upperLine.match(/\bEND\b/g) || []).length;
+        blockDepth += openers - closers;
+        if (blockDepth > 0) openedBody = true;
+
+        const namedEnd = new RegExp(`\\bEND\\s+${currentSubprogram.name}\\b`).test(upperLine);
+        if (namedEnd || (openedBody && blockDepth <= 0 && closers > 0)) {
           currentSubprogram.endLine = i + 1;
           if (currentSubprogram.type === 'PROCEDURE') procedures.push(currentSubprogram);
           else functions.push(currentSubprogram);

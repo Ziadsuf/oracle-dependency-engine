@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowDown, ArrowUp, Database, FileCode2, Package, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -64,19 +64,24 @@ export function ImpactAnalyzer() {
     };
   }, [search]);
 
+  // Monotonic request id so a slow earlier response can't overwrite a newer one.
+  const analyzeSeq = useRef(0);
   const handleAnalyze = async (id: string) => {
+    const seq = ++analyzeSeq.current;
     setSelectedObj(id);
     setLoading(true);
     try {
       const response = await fetch(`/api/v2/impact/${encodeURIComponent(id)}`);
       const data = await response.json();
+      if (seq !== analyzeSeq.current) return; // a newer selection won — drop this result
       if (!response.ok) throw new Error(data.error || 'Impact analysis failed');
       setResult(data);
     } catch (err) {
+      if (seq !== analyzeSeq.current) return;
       console.error('Failed to fetch impact details', err);
       setResult(null);
     } finally {
-      setLoading(false);
+      if (seq === analyzeSeq.current) setLoading(false);
     }
   };
 

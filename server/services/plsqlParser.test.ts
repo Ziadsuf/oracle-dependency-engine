@@ -54,4 +54,23 @@ END HR_PKG;
     expect(result.dependencies).toContain('EMPLOYEES');
     expect(result.dependencies).toContain('EMP_SALARIES');
   });
+
+  it('detects short subprograms that end with a bare END; (nesting-based end detection)', () => {
+    const plsql = `CREATE OR REPLACE PACKAGE BODY P AS
+  FUNCTION f RETURN NUMBER IS
+  BEGIN
+    RETURN 1;
+  END;
+  PROCEDURE noop IS
+  BEGIN
+    NULL;
+  END;
+END P;`;
+    const result = analyzer.analyze('p.pkb', plsql);
+    expect(result.functions.map((f) => f.name)).toEqual(['F']);
+    expect(result.procedures.map((p) => p.name)).toEqual(['NOOP']);
+    // Each ends at its own END; (not absorbed into the next), so end > start, tightly.
+    expect(result.functions[0].endLine).toBe(5);
+    expect(result.procedures[0].endLine).toBe(9);
+  });
 });
