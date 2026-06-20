@@ -39,10 +39,14 @@ const OBJECT_TYPE_MAP: Record<string, NodeType> = {
   'INDEX': 'index',
 };
 
-const SYSTEM_OWNERS = new Set([
+const SYSTEM_OWNER_LIST = [
   'SYS', 'SYSTEM', 'PUBLIC', 'XDB', 'CTXSYS', 'MDSYS', 'ORDSYS', 'OUTLN',
   'DBSNMP', 'APPQOSSYS', 'WMSYS', 'OLAPSYS', 'LBACSYS', 'DVSYS', 'AUDSYS', 'GSMADMIN_INTERNAL',
-]);
+];
+const SYSTEM_OWNERS = new Set(SYSTEM_OWNER_LIST);
+// SQL exclusion used when discovering all schemas, so the entire SYS data
+// dictionary isn't pulled into memory just to be dropped in JS afterwards.
+const SYSTEM_OWNERS_SQL = SYSTEM_OWNER_LIST.map((o) => `'${o}'`).join(',');
 
 export interface DictionaryRows {
   artifact: string;
@@ -182,7 +186,13 @@ export class LiveOracleSource implements MetadataSource {
 
     try {
       const schemas = (options.schemas ?? []).map((s) => s.toUpperCase());
-      const schemaFilter = schemas.length > 0 ? `AND owner IN (${schemas.map((_, i) => `:s${i}`).join(',')})` : '';
+      // With explicit schemas: filter to them. Without: exclude Oracle-internal
+      // owners in SQL so "discover all" doesn't drag the whole SYS dictionary
+      // into memory. (System-owner names are hardcoded constants, not user input.)
+      const schemaFilter =
+        schemas.length > 0
+          ? `AND owner IN (${schemas.map((_, i) => `:s${i}`).join(',')})`
+          : `AND owner NOT IN (${SYSTEM_OWNERS_SQL})`;
       const binds = Object.fromEntries(schemas.map((s, i) => [`s${i}`, s]));
 
       const query = async (sql: string): Promise<Record<string, unknown>[]> => {
