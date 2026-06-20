@@ -1,5 +1,7 @@
 # Oracle Impact Analyzer — Dependency Engine
 
+[![CI/CD](https://github.com/Ziadsuf/oracle-dependency-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Ziadsuf/oracle-dependency-engine/actions/workflows/ci.yml)
+
 Analyze legacy Oracle systems (Forms 6i, Reports 6i, PL/SQL packages, and schema objects), build a **dependency graph in Neo4j**, and compute the **blast radius / migration risk** of changing any object.
 
 It parses real artifacts (Forms XML, Reports XML, PL/SQL, DDL) and the live Oracle data dictionary into one canonical graph, then exposes graph + impact-analysis APIs consumed by a React Flow UI.
