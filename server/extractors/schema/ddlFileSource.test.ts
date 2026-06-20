@@ -66,4 +66,23 @@ describe('DdlFileSource', () => {
     const fragment = source.extract('x.sql', 'CREATE TABLE widgets (id NUMBER);', { defaultSchema: 'APP' });
     expect(fragment.nodes[0].id).toBe('table:APP.WIDGETS');
   });
+
+  it('ignores commented-out DDL and references', () => {
+    const ddl = `
+      -- CREATE TABLE app.ghost_tbl (id NUMBER);
+      /* CREATE TABLE app.block_ghost (id NUMBER); REFERENCES app.commented_parent */
+      CREATE TABLE app.real_tbl (
+        id  NUMBER PRIMARY KEY,
+        fk  NUMBER REFERENCES app.real_parent(id)  -- REFERENCES app.commented_fk(id)
+      );
+    `;
+    const fragment = source.extract('x.sql', ddl);
+    const ids = fragment.nodes.map((n) => n.id);
+    expect(ids).toContain('table:APP.REAL_TBL');
+    expect(ids.some((id) => id.includes('GHOST'))).toBe(false);
+
+    const fkTargets = fragment.refs.filter((r) => r.relType === 'FK_TO').map((r) => r.name);
+    expect(fkTargets).toContain('APP.REAL_PARENT');
+    expect(fkTargets.some((n) => n.includes('COMMENTED'))).toBe(false);
+  });
 });

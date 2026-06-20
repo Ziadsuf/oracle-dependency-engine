@@ -10,9 +10,10 @@ import { PlsqlAnalyzerService } from "./server/services/plsqlParser";
 import { ReportsAnalyzerService } from "./server/services/reportsParser";
 import { connectGraphEngineFromEnv, type GraphEngine } from "./server/graph";
 import { createV2Router } from "./server/api/v2";
+import { MAX_UPLOAD_BYTES } from "./server/config";
+import { errorMessage } from "./server/util/errors";
 
 // Cap uploaded artifacts (held in memory) to avoid memory-exhaustion DoS.
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_UPLOAD_BYTES },
@@ -45,9 +46,9 @@ async function startServer() {
     } else {
       console.log("NEO4J_URI not set — running without the dependency graph.");
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     graphStatus = "error";
-    console.warn(`Neo4j configured but unreachable: ${error.message}`);
+    console.warn(`Neo4j configured but unreachable: ${errorMessage(error)}`);
   }
 
   app.use(express.json());
@@ -65,8 +66,8 @@ async function startServer() {
     try {
       const graph = await graphEngine.repository.getStats();
       res.json({ status: "ok", neo4j: "connected", graph });
-    } catch (error: any) {
-      res.json({ status: "ok", neo4j: "error", error: error.message });
+    } catch (error: unknown) {
+      res.json({ status: "ok", neo4j: "error", error: errorMessage(error) });
     }
   });
 
@@ -92,9 +93,9 @@ async function startServer() {
     try {
       const result = formsAnalyzerService.analyze(file.originalname, file.buffer);
       res.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Forms analysis failed:", error);
-      res.status(500).json({ error: error.message || "Failed to analyze form" });
+      res.status(500).json({ error: errorMessage(error) || "Failed to analyze form" });
     }
   });
 
@@ -106,9 +107,9 @@ async function startServer() {
     try {
       const result = reportsAnalyzerService.analyze(file.originalname, file.buffer);
       res.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Reports analysis failed:", error);
-      res.status(500).json({ error: error.message || "Failed to analyze report" });
+      res.status(500).json({ error: errorMessage(error) || "Failed to analyze report" });
     }
   });
 
@@ -122,9 +123,9 @@ async function startServer() {
       const content = file.buffer.toString("utf-8");
       const result = plsqlAnalyzerService.analyze(file.originalname, content);
       res.json(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("PL/SQL analysis failed:", error);
-      res.status(500).json({ error: error.message || "Failed to analyze PL/SQL" });
+      res.status(500).json({ error: errorMessage(error) || "Failed to analyze PL/SQL" });
     }
   });
 
@@ -371,9 +372,9 @@ public class ${baseName} {
         hook,
         types
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("React Gen failure:", error);
-      res.status(500).json({ error: error.message || "Failed to generate code" });
+      res.status(500).json({ error: errorMessage(error) || "Failed to generate code" });
     }
   });
 
@@ -582,9 +583,9 @@ public class ${baseName}Dto {
         entity,
         dto
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Spring Boot Gen failure:", error);
-      res.status(500).json({ error: error.message || "Failed to generate code" });
+      res.status(500).json({ error: errorMessage(error) || "Failed to generate code" });
     }
   });
 

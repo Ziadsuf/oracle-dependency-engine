@@ -4,7 +4,7 @@
 
 import { CONFIDENCE, type EvidenceRef, type NodeType, type OracleObjectNode, groupFor } from '../../domain/model';
 import { canonicalId, normalizeIdentifier } from '../../domain/ids';
-import { scanPlsql, scanSqlTables } from '../plsql/sqlReferenceExtractor';
+import { scanPlsql, scanSqlTables, stripComments } from '../plsql/sqlReferenceExtractor';
 import { emptyFragment, type ExtractionFragment } from '../types';
 
 const DDL_TYPE_MAP: Record<string, NodeType> = {
@@ -66,7 +66,10 @@ export class DdlFileSource {
   extract(fileName: string, content: string, options: DdlExtractOptions = {}): ExtractionFragment {
     const fragment = emptyFragment();
     const defaultSchema = options.defaultSchema ?? null;
-    const statements = splitStatements(content);
+    // Blank out comments first (keeps offsets/line numbers) so a commented-out
+    // CREATE / REFERENCES / ON clause doesn't produce phantom objects or edges.
+    const cleaned = stripComments(content);
+    const statements = splitStatements(cleaned);
     const evidence = (line: number): EvidenceRef[] => [{ sourceType: 'DDL_FILE', file: fileName, line }];
 
     for (const statement of statements) {
@@ -165,7 +168,7 @@ export class DdlFileSource {
     const alterFkRegex =
       /ALTER\s+TABLE\s+("?[A-Za-z0-9_$#]+"?(?:\."?[A-Za-z0-9_$#]+"?)?)[\s\S]{0,300}?FOREIGN\s+KEY[\s\S]{0,200}?REFERENCES\s+("?[A-Za-z0-9_$#]+"?(?:\."?[A-Za-z0-9_$#]+"?)?)/gi;
     let alterMatch: RegExpExecArray | null;
-    while ((alterMatch = alterFkRegex.exec(content)) !== null) {
+    while ((alterMatch = alterFkRegex.exec(cleaned)) !== null) {
       const { schema, name } = parseObjectName(alterMatch[1].replace(/"/g, ''), defaultSchema);
       fragment.refs.push({
         fromId: canonicalId('table', schema, name),

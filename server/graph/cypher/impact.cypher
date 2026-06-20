@@ -8,9 +8,12 @@
 MATCH (target:OracleObject {id: $id})
 MATCH p = (d:OracleObject)__ARROW_LEFT__[:CONTAINS|CALLS|REFERENCES|DEPENDS_ON|BASED_ON|USES_SEQUENCE|FK_TO|ATTACHED_TO|QUERIES|SYNONYM_FOR*1..__DEPTH__]__ARROW_RIGHT__(target)
 WHERE d <> target
+// Order by length first so head(collect(p)) is the shortest path — keeping
+// `viaPath` consistent with the reported `depth` (= min length).
+WITH d, p ORDER BY length(p)
 WITH d, min(length(p)) AS depth,
      max(reduce(c = 1.0, r IN relationships(p) | c * coalesce(r.confidence, 1.0))) AS confidence,
-     collect(p)[0] AS sample
+     head(collect(p)) AS sample
 RETURN d.id AS id, d.name AS label, d.type AS type, depth, confidence,
        [n IN nodes(sample) | n.id] AS viaPath
 ORDER BY depth ASC, label ASC

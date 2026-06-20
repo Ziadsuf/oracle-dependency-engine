@@ -15,8 +15,12 @@ import { DdlFileSource } from '../../extractors/schema/ddlFileSource';
 import { LiveOracleSource, oracleConfigFromEnv } from '../../extractors/schema/liveOracleSource';
 import type { SourceType } from '../../domain/model';
 import type { ExtractionFragment } from '../../extractors/types';
+import { MAX_UPLOAD_BYTES } from '../../config';
+import { errorMessage } from '../../util/errors';
 
-const upload = multer({ storage: multer.memoryStorage() });
+// Cap uploaded artifacts (held in memory) to avoid memory-exhaustion DoS.
+// Errors bubble up to the app-level MulterError handler in server.ts (→ 413).
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } });
 
 function csv(value: unknown): string[] | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined;
@@ -44,8 +48,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
         limit: req.query.limit ? Number(req.query.limit) : undefined,
       });
       res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -54,8 +58,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
     try {
       await deps.repository.clearGraph();
       res.json({ status: 'cleared' });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -64,8 +68,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
       const detail = await graphQuery.getNodeDetail(req.params.id);
       if (!detail) return res.status(404).json({ error: `Unknown object: ${req.params.id}` });
       res.json(detail);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -77,8 +81,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
       }
       const data = await graphQuery.getNeighbors(req.params.id, direction, req.query.depth ? Number(req.query.depth) : 1);
       res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -92,8 +96,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
         pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
       });
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -104,8 +108,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
         req.query.limit ? Number(req.query.limit) : undefined
       );
       res.json(summary);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -125,8 +129,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
         migrationReadiness,
         technicalDebt: debtRatio > 0.25 ? 'Critical' : debtRatio > 0.12 ? 'High' : debtRatio > 0.05 ? 'Medium' : 'Low',
       });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -137,8 +141,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
       const to = str(req.query.to);
       if (!to) return res.status(400).json({ error: 'Query parameter "to" is required' });
       res.json({ paths: await impact.findPaths(req.params.id, to) });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -154,8 +158,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
       });
       if (!result) return res.status(404).json({ error: `Unknown object: ${req.params.id}` });
       res.json(result);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
@@ -177,8 +181,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
           extract: () => extract(file.originalname, file.buffer, defaultSchema),
         });
         res.json(result);
-      } catch (error: any) {
-        res.status(422).json({ error: error.message });
+      } catch (error: unknown) {
+        res.status(422).json({ error: errorMessage(error) });
       }
     };
 
@@ -216,8 +220,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
         extract: () => source.discover({ schemas }),
       });
       res.json(result);
-    } catch (error: any) {
-      res.status(502).json({ error: `Oracle discovery failed: ${error.message}` });
+    } catch (error: unknown) {
+      res.status(502).json({ error: `Oracle discovery failed: ${errorMessage(error)}` });
     }
   });
 
@@ -226,8 +230,8 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
       const run = await deps.repository.getIngestionRun(req.params.id);
       if (!run) return res.status(404).json({ error: `Unknown run: ${req.params.id}` });
       res.json(run);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ error: errorMessage(error) });
     }
   });
 
