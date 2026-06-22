@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage: compile the React SPA (Vite) and bundle the Node server (esbuild)
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Manifests first for better layer caching
@@ -20,7 +20,7 @@ COPY server ./server
 RUN npm run build
 
 # ---- Runtime stage: minimal image with production deps only
-FROM node:20-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
