@@ -17,6 +17,8 @@ import type { SourceType } from '../../domain/model';
 import type { ExtractionFragment } from '../../extractors/types';
 import { MAX_UPLOAD_BYTES } from '../../config';
 import { errorMessage } from '../../util/errors';
+import { createApiAuth } from '../../middleware/apiAuth';
+import { createGeneralLimiter, createIngestLimiter } from '../../middleware/rateLimit';
 
 // Cap uploaded artifacts (held in memory) to avoid memory-exhaustion DoS.
 // Errors bubble up to the app-level MulterError handler in server.ts (→ 413).
@@ -37,6 +39,12 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
   const impact = new ImpactAnalysisService(deps.runner);
   const pipeline = new IngestionPipeline(deps.repository);
 
+  // Rate limit the whole surface; auth (when API_TOKEN is set) guards the
+  // mutating endpoints; ingest/discovery also get a stricter rate limit.
+  const auth = createApiAuth();
+  router.use(createGeneralLimiter());
+  const ingestLimiter = createIngestLimiter();
+
   // ---- Graph APIs -----------------------------------------------------------
 
   router.get('/graph', async (req, res) => {
@@ -54,7 +62,7 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
   });
 
   // Wipe the whole graph — used by "Replace graph" so an upload reflects exactly one file.
-  router.delete('/graph', async (req, res) => {
+  router.delete('/graph', auth.requireToken, async (req, res) => {
     try {
       await deps.repository.clearGraph();
       res.json({ status: 'cleared' });
@@ -191,20 +199,23 @@ export function createV2Router(deps: { runner: CypherRunner; repository: GraphRe
   const plsqlExtractor = new PlsqlExtractor();
   const ddlSource = new DdlFileSource();
 
-  router.post('/ingest/forms', upload.single('file'), ingestUpload('FORMS_XML', (name, buffer, schema) =>
+  // Mutating ingest routes: auth (if enabled) + stricter rate limit, then upload.
+  const ingestGuards = [auth.requireToken, ingestLimiter, upload.single('file')];
+
+  router.post('/ingest/forms', ...ingestGuards, ingestUpload('FORMS_XML', (name, buffer, schema) =>
     formsExtractor.extract(name, buffer, { defaultSchema: schema })
   ));
-  router.post('/ingest/reports', upload.single('file'), ingestUpload('REPORTS_XML', (name, buffer, schema) =>
+  router.post('/ingest/reports', ...ingestGuards, ingestUpload('REPORTS_XML', (name, buffer, schema) =>
     reportsExtractor.extract(name, buffer, { defaultSchema: schema })
   ));
-  router.post('/ingest/plsql', upload.single('file'), ingestUpload('PLSQL_SOURCE', (name, buffer, schema) =>
+  router.post('/ingest/plsql', ...ingestGuards, ingestUpload('PLSQL_SOURCE', (name, buffer, schema) =>
     plsqlExtractor.extract(name, buffer.toString('utf-8'), { defaultSchema: schema })
   ));
-  router.post('/ingest/schema', upload.single('file'), ingestUpload('DDL_FILE', (name, buffer, schema) =>
+  router.post('/ingest/schema', ...ingestGuards, ingestUpload('DDL_FILE', (name, buffer, schema) =>
     ddlSource.extract(name, buffer.toString('utf-8'), { defaultSchema: schema })
   ));
 
-  router.post('/ingest/discover', async (req, res) => {
+  router.post('/ingest/discover', auth.requireToken, ingestLimiter, async (req, res) => {
     const config = oracleConfigFromEnv();
     if (!config) {
       return res.status(503).json({

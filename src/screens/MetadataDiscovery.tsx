@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Database, Search, Upload, RefreshCw, Layers, ShieldAlert, Code2, Play, Plus, Server } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { MetadataDiscoveryResult } from '../types';
+import { apiFetch } from '../lib/api';
 
 export function MetadataDiscovery() {
   const [result, setResult] = useState<MetadataDiscoveryResult | null>(null);
@@ -24,10 +25,10 @@ export function MetadataDiscovery() {
 
   const clearIfReplacing = async () => {
     if (!replaceGraph) return;
-    const res = await fetch('/api/v2/graph', { method: 'DELETE' });
+    const res = await apiFetch('/api/v2/graph', { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to clear graph');
+      throw new Error(data.error || (res.status === 401 ? 'Unauthorized — set your API token' : 'Failed to clear graph'));
     }
   };
 
@@ -38,13 +39,13 @@ export function MetadataDiscovery() {
     try {
       await clearIfReplacing();
       const schemas = schemasInput.split(',').map(s => s.trim()).filter(Boolean);
-      const res = await fetch('/api/v2/ingest/discover', {
+      const res = await apiFetch('/api/v2/ingest/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schemas }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Live discovery failed');
+      if (!res.ok) throw new Error(data.error || (res.status === 401 ? 'Unauthorized — set your API token' : 'Live discovery failed'));
       await loadSummary();
     } catch (err: any) {
       setError(err.message);
@@ -63,9 +64,9 @@ export function MetadataDiscovery() {
       await clearIfReplacing();
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/v2/ingest/schema', { method: 'POST', body: formData });
+      const res = await apiFetch('/api/v2/ingest/schema', { method: 'POST', body: formData });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'DDL ingestion failed');
+      if (!res.ok) throw new Error(data.error || (res.status === 401 ? 'Unauthorized — set your API token' : 'DDL ingestion failed'));
       await loadSummary();
     } catch (err: any) {
       setError(err.message);
