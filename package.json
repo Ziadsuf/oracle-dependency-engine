@@ -1,7 +1,7 @@
 {
-  "name": "react-example",
+  "name": "oracle-dependency-engine",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -49,5 +49,8 @@
     "typescript": "~5.8.2",
     "vite": "^6.2.3",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "dompurify": "$dompurify"
   }
 }

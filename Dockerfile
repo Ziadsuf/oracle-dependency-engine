@@ -29,11 +29,15 @@ ENV PORT=3010
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Built artifacts
-COPY --from=builder /app/dist ./dist
+# Built artifacts (owned by the unprivileged `node` user that runs the app)
+COPY --from=builder --chown=node:node /app/dist ./dist
 # Cypher templates are read from disk at runtime (server/graph/cypher/*.cypher
 # via process.cwd()); the esbuild bundle does not inline them.
-COPY --from=builder /app/server/graph/cypher ./server/graph/cypher
+COPY --from=builder --chown=node:node /app/server/graph/cypher ./server/graph/cypher
+
+# Drop root — run as the built-in unprivileged `node` user (uid 1000).
+# PORT 3010 (>1024) needs no elevated privileges to bind.
+USER node
 
 EXPOSE 3010
 
