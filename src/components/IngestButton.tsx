@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GitBranch, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 interface IngestStats {
   nodesUpserted: number;
@@ -26,7 +27,7 @@ export function IngestButton({ getFile, endpoint, label }: Props) {
     try {
       let response: Response;
       if (endpoint === 'discover') {
-        response = await fetch('/api/v2/ingest/discover', {
+        response = await apiFetch('/api/v2/ingest/discover', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
@@ -40,10 +41,10 @@ export function IngestButton({ getFile, endpoint, label }: Props) {
         }
         const formData = new FormData();
         formData.append('file', file);
-        response = await fetch(`/api/v2/ingest/${endpoint}`, { method: 'POST', body: formData });
+        response = await apiFetch(`/api/v2/ingest/${endpoint}`, { method: 'POST', body: formData });
       }
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Ingestion failed');
+      if (!response.ok) throw new Error(data.error || (response.status === 401 ? 'Unauthorized — set your API token' : 'Ingestion failed'));
       const stats: IngestStats | undefined = data.stats;
       setMessage(
         stats

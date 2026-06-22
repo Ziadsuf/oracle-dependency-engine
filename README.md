@@ -48,6 +48,10 @@ Open the app, go to **Metadata Discovery → DDL Upload**, and drop a `.sql` fil
 | `ORACLE_USER` / `ORACLE_PASSWORD` / `ORACLE_CONNECT_STRING` | Optional live Oracle discovery (read-only). |
 | `IMPACT_MAX_DEPTH` | Max impact traversal depth (default 8). |
 | `PORT` | HTTP port (default 3000). |
+| `API_TOKEN` | When set, mutating endpoints require it (`Authorization: Bearer …` or `X-API-Key`). Reads stay open. Unset = open (local dev). |
+| `RATE_LIMIT_*`, `TRUST_PROXY` | Per-IP rate limits and proxy-hop trust (see `.env.example`). |
+
+> **Exposing the server?** Set `API_TOKEN` — the ingest / discover / `DELETE /graph` endpoints are otherwise unauthenticated. In the UI, enter the same token under **Settings** (sidebar). Requests are rate-limited per IP.
 
 ## API (`/api/v2`)
 

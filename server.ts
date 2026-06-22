@@ -34,6 +34,12 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  // Behind a reverse proxy, opt in so rate-limiting keys on the real client IP
+  // (TRUST_PROXY=1 trusts one hop). Off by default to avoid X-Forwarded-For spoofing.
+  if (process.env.TRUST_PROXY) {
+    app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+  }
+
   // Dependency Engine graph store: optional — the analyzer screens keep
   // working without Neo4j; configure NEO4J_* env vars to enable the engine.
   let graphEngine: GraphEngine | null = null;
@@ -73,6 +79,11 @@ async function startServer() {
 
   // Dependency Engine APIs (graph, impact, objects, stats, ingestion)
   if (graphEngine) {
+    if (!process.env.API_TOKEN) {
+      console.warn(
+        "API_TOKEN not set — /api/v2 mutating endpoints (ingest, discover, DELETE graph) are UNAUTHENTICATED. Set API_TOKEN before exposing this server."
+      );
+    }
     app.use("/api/v2", createV2Router(graphEngine));
   } else {
     app.use("/api/v2", (req, res) => {

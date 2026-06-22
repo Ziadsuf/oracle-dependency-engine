@@ -1,15 +1,16 @@
-import React from 'react';
-import { 
-  LayoutDashboard, 
-  FileCode2, 
-  Database, 
-  Network, 
+import React, { useState } from 'react';
+import {
+  LayoutDashboard,
+  FileCode2,
+  Database,
+  Network,
   Settings,
   Activity,
   Server,
   FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getApiToken, setApiToken } from '../lib/api';
 
 interface NavigationProps {
   currentView: string;
@@ -17,6 +18,9 @@ interface NavigationProps {
 }
 
 export function Navigation({ currentView, onViewChange }: NavigationProps) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [token, setToken] = useState(getApiToken());
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'forms', label: 'Forms Analyzer', icon: FileCode2 },
@@ -64,10 +68,33 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
       </nav>
 
       <div className="p-4 border-t border-slate-800/50 mt-auto">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:text-cyan-400 hover:bg-slate-800/50 transition-colors">
+        <button
+          onClick={() => setShowSettings((s) => !s)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+            showSettings ? "text-cyan-400 bg-slate-800/50" : "text-slate-500 hover:text-cyan-400 hover:bg-slate-800/50"
+          )}
+        >
           <Settings size={18} />
           Settings
         </button>
+
+        {showSettings && (
+          <div className="mt-3 px-1">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-slate-500 block mb-1">API Token</label>
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => { setToken(e.target.value); setApiToken(e.target.value); }}
+              placeholder="for protected servers"
+              autoComplete="off"
+              className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1.5 text-xs font-mono text-slate-300 focus:outline-none focus:border-cyan-500/50"
+            />
+            <p className="text-[10px] text-slate-600 mt-1.5 leading-snug">
+              Sent as <span className="font-mono">X-API-Key</span> for ingest / discover / clear. Leave blank if the server has no <span className="font-mono">API_TOKEN</span>.
+            </p>
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { createV2Router } from './index';
@@ -71,5 +71,40 @@ describe('createV2Router', () => {
   it('returns 404 for an unknown ingestion run', async () => {
     const res = await request(makeApp()).get('/api/v2/ingest/runs/does-not-exist');
     expect(res.status).toBe(404);
+  });
+});
+
+describe('createV2Router — API token auth', () => {
+  const TOKEN = 'secret-test-token';
+  let prev: string | undefined;
+  beforeEach(() => { prev = process.env.API_TOKEN; process.env.API_TOKEN = TOKEN; });
+  afterEach(() => { if (prev === undefined) delete process.env.API_TOKEN; else process.env.API_TOKEN = prev; });
+
+  it('401s a mutating request with no token', async () => {
+    const res = await request(makeApp()).delete('/api/v2/graph');
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a wrong token', async () => {
+    const res = await request(makeApp()).post('/api/v2/ingest/schema').set('X-API-Key', 'nope');
+    expect(res.status).toBe(401);
+  });
+
+  it('allows a mutation with a valid X-API-Key', async () => {
+    let cleared = false;
+    const app = makeApp({ repository: { clearGraph: async () => { cleared = true; } } });
+    const res = await request(app).delete('/api/v2/graph').set('X-API-Key', TOKEN);
+    expect(res.status).toBe(200);
+    expect(cleared).toBe(true);
+  });
+
+  it('accepts a valid Bearer token (then reaches the no-file 400)', async () => {
+    const res = await request(makeApp()).post('/api/v2/ingest/forms').set('Authorization', `Bearer ${TOKEN}`);
+    expect(res.status).toBe(400); // passed auth, then "No file uploaded"
+  });
+
+  it('leaves read endpoints open even when a token is configured', async () => {
+    const res = await request(makeApp({ run: async () => [] })).get('/api/v2/objects');
+    expect(res.status).toBe(200);
   });
 });
